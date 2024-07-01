@@ -1,6 +1,10 @@
 use bevy::{prelude::*, sprite::{MaterialMesh2dBundle, Mesh2dHandle}};
 
 
+#[derive(Component)]
+struct Stuff {
+    name: String
+}
 
 fn main() {
     App::new()
@@ -10,11 +14,6 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
-enum Direction {
-    Up,
-    Down
-}
 
 fn setup(mut commands: Commands, 
     mut meshes: ResMut<Assets<Mesh>>,
@@ -25,19 +24,32 @@ fn setup(mut commands: Commands,
         material: materials.add(Color::BLUE),
         transform: Transform::from_xyz(0., 0., 0.,),
         ..default()
-    }, Direction::Up));
+    }, Stuff {name: "Coucou".to_string()} ));
 }
 
-fn movement(time: Res<Time>, mut sprite_position: Query<(&mut Direction, &mut Transform)>) {
-    for (mut logo, mut transform) in &mut sprite_position {
-        match *logo {
-            Direction::Up => transform.translation.y += 150. * time.delta_seconds(),
-            Direction::Down => transform.translation.y -= 150. * time.delta_seconds()
+fn movement(mut sprite_position: Query<(&mut Transform, &mut Stuff)>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    windows: Query<&Window>,
+
+     ) {
+   
+
+        let (camera, camera_transform) = camera_query.single();
+
+        let Some(cursor_position) = windows.single().cursor_position() else {
+            return;
+        };
+
+
+    
+        // Calculate a world position based on the cursor's position.
+        let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+            return;
+        };
+
+        println!("there are {} sprintes", sprite_position.iter().count());
+        for ((mut transform,_)) in &mut sprite_position {
+            *transform = Transform::from_xyz(point.x, point.y, 0.);
         }
-        if transform.translation.y > 200. {
-            *logo = Direction::Down;
-        } else if transform.translation.y < -200. {
-            *logo = Direction::Up;
-        }
-    }
+
 }
