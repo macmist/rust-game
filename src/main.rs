@@ -4,15 +4,19 @@ use bevy::{
 };
 
 #[derive(Component)]
-struct Stuff {
-    name: String,
+enum Movement {
+    NONE,
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
 }
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
-        .add_systems(Update, movement)
+        .add_systems(Update, (input_system, movement).chain())
         .run();
 }
 
@@ -29,30 +33,44 @@ fn setup(
             transform: Transform::from_xyz(0., 0., 0.),
             ..default()
         },
-        Stuff {
-            name: "Coucou".to_string(),
-        },
+        Movement::NONE,
     ));
 }
 
-fn movement(
-    mut sprite_position: Query<(&mut Transform, &mut Stuff)>,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
-    windows: Query<&Window>,
+const SPEED: f32 = 150.;
+
+fn input_system(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut sprite_position: Query<(&mut Transform, &mut Movement)>,
 ) {
-    let (camera, camera_transform) = camera_query.single();
+    for (_, mut movement) in &mut sprite_position {
+        *movement = Movement::NONE;
+        if keys.any_pressed([KeyCode::ArrowUp, KeyCode::KeyW]) {
+            *movement = Movement::UP;
+        }
+        if keys.any_pressed([KeyCode::ArrowDown, KeyCode::KeyS]) {
+            *movement = Movement::DOWN;
+        }
+        if keys.any_pressed([KeyCode::ArrowRight, KeyCode::KeyD]) {
+            *movement = Movement::RIGHT;
+        }
+        if keys.any_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
+            *movement = Movement::LEFT;
+        }
+    }
+}
 
-    let Some(cursor_position) = windows.single().cursor_position() else {
-        return;
-    };
+fn movement(mut sprite_position: Query<(&mut Transform, &mut Movement)>, time: Res<Time>) {
+    for (mut transform, movement) in &mut sprite_position {
+        match *movement {
+            Movement::DOWN => transform.translation.y -= SPEED * time.delta_seconds(),
+            Movement::UP => transform.translation.y += SPEED * time.delta_seconds(),
 
-    // Calculate a world position based on the cursor's position.
-    let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
-        return;
-    };
+            Movement::LEFT => transform.translation.x -= SPEED * time.delta_seconds(),
 
-    println!("there are {} sprintes", sprite_position.iter().count());
-    for ((mut transform, _)) in &mut sprite_position {
-        *transform = Transform::from_xyz(point.x, point.y, 0.);
+            Movement::RIGHT => transform.translation.x += SPEED * time.delta_seconds(),
+
+            _ => (),
+        }
     }
 }
